@@ -32,7 +32,21 @@ class GitHubService {
       `scope=${encodeURIComponent(scope)}&` +
       `state=${state}`;
 
-    window.location.href = authUrl;
+    const popup = window.open(authUrl, 'github-oauth', 'width=600,height=700');
+
+    if (!popup) {
+      alert('Please allow popups for this site to connect to GitHub');
+      return;
+    }
+
+    const checkPopup = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkPopup);
+        if (this.isAuthenticated()) {
+          window.location.reload();
+        }
+      }
+    }, 500);
   }
 
   async handleCallback(code: string, state: string): Promise<GitHubAuthData> {
