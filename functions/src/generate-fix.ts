@@ -39,13 +39,14 @@ interface ClaudeResponse {
 export const generateFix = onRequest(
   {
     secrets: [claudeApiKey],
-    timeoutSeconds: 540,
-    memory: '1GiB'
+    timeoutSeconds: 300,
+    memory: '512MiB',
+    cors: true
   },
   async (req, res) => {
     if (req.method === 'OPTIONS') {
       res.set(corsHeaders);
-      res.status(200).send();
+      res.status(204).send('');
       return;
     }
 
