@@ -1,4 +1,7 @@
 import * as functions from 'firebase-functions';
+import { defineSecret } from 'firebase-functions/params';
+
+const claudeApiKey = defineSecret('CLAUDE_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,7 +36,13 @@ interface ClaudeResponse {
   changes_summary: string[];
 }
 
-export const generateFix = functions.https.onRequest(async (req, res) => {
+export const generateFix = functions
+  .runWith({
+    secrets: [claudeApiKey],
+    timeoutSeconds: 540,
+    memory: '1GB'
+  })
+  .https.onRequest(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.set(corsHeaders);
     res.status(200).send();
@@ -55,8 +64,8 @@ export const generateFix = functions.https.onRequest(async (req, res) => {
       return;
     }
 
-    const claudeApiKey = functions.config().claude.api_key;
-    if (!claudeApiKey) {
+    const apiKey = claudeApiKey.value();
+    if (!apiKey) {
       throw new Error('Claude API key not configured');
     }
 
@@ -126,7 +135,7 @@ Please analyze this security issue and provide a complete, production-ready fix 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': claudeApiKey,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({

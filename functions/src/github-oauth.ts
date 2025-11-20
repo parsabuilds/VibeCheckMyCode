@@ -1,5 +1,8 @@
 import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
+import { defineSecret } from 'firebase-functions/params';
+
+const githubClientId = defineSecret('GITHUB_CLIENT_ID');
+const githubClientSecret = defineSecret('GITHUB_CLIENT_SECRET');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +14,9 @@ interface GitHubOAuthRequest {
   code: string;
 }
 
-export const githubOauth = functions.https.onRequest(async (req, res) => {
+export const githubOauth = functions
+  .runWith({ secrets: [githubClientId, githubClientSecret] })
+  .https.onRequest(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.set(corsHeaders);
     res.status(200).send();
@@ -31,8 +36,8 @@ export const githubOauth = functions.https.onRequest(async (req, res) => {
         return;
       }
 
-      const clientId = functions.config().github.client_id;
-      const clientSecret = functions.config().github.client_secret;
+      const clientId = githubClientId.value();
+      const clientSecret = githubClientSecret.value();
 
       if (!clientId || !clientSecret) {
         throw new Error('GitHub OAuth credentials not configured');
@@ -94,8 +99,8 @@ export const githubOauth = functions.https.onRequest(async (req, res) => {
         return;
       }
 
-      const clientId = functions.config().github.client_id;
-      const clientSecret = functions.config().github.client_secret;
+      const clientId = githubClientId.value();
+      const clientSecret = githubClientSecret.value();
 
       if (!clientId || !clientSecret) {
         throw new Error('GitHub OAuth credentials not configured');
