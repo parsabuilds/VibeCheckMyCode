@@ -1,9 +1,9 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import * as functions from 'firebase-functions';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 interface CreatePRRequest {
@@ -25,45 +25,35 @@ interface CreatePRRequest {
   };
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+export const createPr = functions.https.onRequest(async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.set(corsHeaders);
+    res.status(200).send();
+    return;
   }
 
+  res.set(corsHeaders);
+
   try {
-    if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({ error: "Method not allowed" }),
-        {
-          status: 405,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
     }
 
-    const { githubToken, repoOwner, repoName, issue, fix } = await req.json() as CreatePRRequest;
+    const { githubToken, repoOwner, repoName, issue, fix } = req.body as CreatePRRequest;
 
     if (!githubToken || !repoOwner || !repoName || !issue || !fix) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
     }
 
-    const githubApi = "https://api.github.com";
+    const githubApi = 'https://api.github.com';
     const authHeaders = {
-      "Authorization": `Bearer ${githubToken}`,
-      "Accept": "application/vnd.github.v3+json",
-      "Content-Type": "application/json",
+      'Authorization': `Bearer ${githubToken}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
     };
 
-    // Get the default branch
     const repoResponse = await fetch(`${githubApi}/repos/${repoOwner}/${repoName}`, {
       headers: authHeaders,
     });
@@ -75,7 +65,6 @@ Deno.serve(async (req: Request) => {
     const repoData = await repoResponse.json();
     const defaultBranch = repoData.default_branch;
 
-    // Get the SHA of the default branch
     const refResponse = await fetch(
       `${githubApi}/repos/${repoOwner}/${repoName}/git/refs/heads/${defaultBranch}`,
       { headers: authHeaders }
@@ -88,12 +77,11 @@ Deno.serve(async (req: Request) => {
     const refData = await refResponse.json();
     const baseSha = refData.object.sha;
 
-    // Create a new branch
     const branchName = `fix/security-${issue.severity}-${issue.id.substring(0, 8)}`;
     const createBranchResponse = await fetch(
       `${githubApi}/repos/${repoOwner}/${repoName}/git/refs`,
       {
-        method: "POST",
+        method: 'POST',
         headers: authHeaders,
         body: JSON.stringify({
           ref: `refs/heads/${branchName}`,
@@ -104,19 +92,13 @@ Deno.serve(async (req: Request) => {
 
     if (!createBranchResponse.ok) {
       const errorData = await createBranchResponse.json();
-      if (errorData.message?.includes("already exists")) {
-        return new Response(
-          JSON.stringify({ error: "A branch for this fix already exists" }),
-          {
-            status: 409,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+      if (errorData.message?.includes('already exists')) {
+        res.status(409).json({ error: 'A branch for this fix already exists' });
+        return;
       }
       throw new Error(`Failed to create branch: ${createBranchResponse.statusText}`);
     }
 
-    // Get current file content to get its SHA
     const fileResponse = await fetch(
       `${githubApi}/repos/${repoOwner}/${repoName}/contents/${fix.file_path}?ref=${defaultBranch}`,
       { headers: authHeaders }
@@ -129,15 +111,14 @@ Deno.serve(async (req: Request) => {
     const fileData = await fileResponse.json();
     const fileSha = fileData.sha;
 
-    // Update the file with the fix
     const updateFileResponse = await fetch(
       `${githubApi}/repos/${repoOwner}/${repoName}/contents/${fix.file_path}`,
       {
-        method: "PUT",
+        method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify({
           message: `Fix ${issue.severity} security issue: ${issue.title}`,
-          content: btoa(fix.fixed_content),
+          content: Buffer.from(fix.fixed_content).toString('base64'),
           branch: branchName,
           sha: fileSha,
         }),
@@ -148,7 +129,6 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Failed to update file: ${updateFileResponse.statusText}`);
     }
 
-    // Create Pull Request
     const prTitle = `[Security] Fix ${issue.severity} issue: ${issue.title}`;
     const prBody = `## Security Fix
 
@@ -173,7 +153,7 @@ ${fix.explanation}
     const createPRResponse = await fetch(
       `${githubApi}/repos/${repoOwner}/${repoName}/pulls`,
       {
-        method: "POST",
+        method: 'POST',
         headers: authHeaders,
         body: JSON.stringify({
           title: prTitle,
@@ -191,30 +171,19 @@ ${fix.explanation}
 
     const prData = await createPRResponse.json();
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        pr: {
-          url: prData.html_url,
-          number: prData.number,
-          branch: branchName,
-          title: prData.title,
-        },
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  } catch (error) {
-    console.error("PR creation error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error.message || "Failed to create pull request",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    res.json({
+      success: true,
+      pr: {
+        url: prData.html_url,
+        number: prData.number,
+        branch: branchName,
+        title: prData.title,
+      },
+    });
+  } catch (error: any) {
+    console.error('PR creation error:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to create pull request',
+    });
   }
 });

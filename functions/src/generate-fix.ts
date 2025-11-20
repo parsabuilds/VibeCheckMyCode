@@ -1,9 +1,9 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import * as functions from 'firebase-functions';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 interface GenerateFixRequest {
@@ -33,43 +33,33 @@ interface ClaudeResponse {
   changes_summary: string[];
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+export const generateFix = functions.https.onRequest(async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.set(corsHeaders);
+    res.status(200).send();
+    return;
   }
 
+  res.set(corsHeaders);
+
   try {
-    if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({ error: "Method not allowed" }),
-        {
-          status: 405,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
     }
 
-    const { issue, fileContent, repoContext } = await req.json() as GenerateFixRequest;
+    const { issue, fileContent, repoContext } = req.body as GenerateFixRequest;
 
     if (!issue || !fileContent) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
     }
 
-    const claudeApiKey = Deno.env.get("CLAUDE_API_KEY");
+    const claudeApiKey = functions.config().claude.api_key;
     if (!claudeApiKey) {
-      throw new Error("Claude API key not configured");
+      throw new Error('Claude API key not configured');
     }
 
-    // Build the system prompt for Claude
     const systemPrompt = `You are an expert security engineer specializing in fixing security vulnerabilities in code. Your task is to analyze security issues and provide precise, production-ready fixes.
 
 CRITICAL RULES:
@@ -107,17 +97,17 @@ SECURITY ISSUE:
 - Title: ${issue.title}
 - Description: ${issue.description}
 - Recommendation: ${issue.recommendation}
-${issue.lineNumber ? `- Line Number: ${issue.lineNumber}` : ""}
+${issue.lineNumber ? `- Line Number: ${issue.lineNumber}` : ''}
 
 ${repoContext ? `
 REPOSITORY CONTEXT:
 - Name: ${repoContext.name}
 - Language: ${repoContext.language}
-${repoContext.framework ? `- Framework: ${repoContext.framework}` : ""}
-` : ""}
+${repoContext.framework ? `- Framework: ${repoContext.framework}` : ''}
+` : ''}
 
 FILE TO FIX:
-${issue.filePath ? `Path: ${issue.filePath}` : ""}
+${issue.filePath ? `Path: ${issue.filePath}` : ''}
 
 \`\`\`
 ${fileContent}
@@ -128,25 +118,24 @@ PROBLEMATIC CODE SNIPPET:
 \`\`\`
 ${issue.codeSnippet}
 \`\`\`
-` : ""}
+` : ''}
 
 Please analyze this security issue and provide a complete, production-ready fix for the entire file.`;
 
-    // Call Claude API
-    const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
+    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": claudeApiKey,
-        "anthropic-version": "2023-06-01",
+        'Content-Type': 'application/json',
+        'x-api-key': claudeApiKey,
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 8000,
         system: systemPrompt,
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: userPrompt,
           },
         ],
@@ -155,17 +144,15 @@ Please analyze this security issue and provide a complete, production-ready fix 
 
     if (!claudeResponse.ok) {
       const errorData = await claudeResponse.text();
-      console.error("Claude API error:", errorData);
+      console.error('Claude API error:', errorData);
       throw new Error(`Claude API error: ${claudeResponse.statusText}`);
     }
 
     const claudeData = await claudeResponse.json();
     const assistantMessage = claudeData.content[0].text;
 
-    // Try to parse JSON response from Claude
     let fixData: ClaudeResponse;
     try {
-      // Extract JSON from markdown code blocks if present
       const jsonMatch = assistantMessage.match(/```json\n([\s\S]*?)\n```/) ||
                        assistantMessage.match(/```\n([\s\S]*?)\n```/) ||
                        assistantMessage.match(/(\{[\s\S]*\})/);
@@ -176,43 +163,31 @@ Please analyze this security issue and provide a complete, production-ready fix 
         fixData = JSON.parse(assistantMessage);
       }
     } catch (parseError) {
-      console.error("Failed to parse Claude response:", assistantMessage);
-      throw new Error("Failed to parse AI response. Please try again.");
+      console.error('Failed to parse Claude response:', assistantMessage);
+      throw new Error('Failed to parse AI response. Please try again.');
     }
 
-    // Validate the fix
     if (!fixData.fixed_content || !fixData.explanation) {
-      throw new Error("Invalid fix data from AI");
+      throw new Error('Invalid fix data from AI');
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        fix: {
-          original_content: fileContent,
-          fixed_content: fixData.fixed_content,
-          explanation: fixData.explanation,
-          confidence: fixData.confidence || 0.8,
-          changes_summary: fixData.changes_summary || [],
-          issue_id: issue.id,
-          file_path: issue.filePath,
-        },
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  } catch (error) {
-    console.error("Fix generation error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error.message || "Failed to generate fix",
-        details: error.stack
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    res.json({
+      success: true,
+      fix: {
+        original_content: fileContent,
+        fixed_content: fixData.fixed_content,
+        explanation: fixData.explanation,
+        confidence: fixData.confidence || 0.8,
+        changes_summary: fixData.changes_summary || [],
+        issue_id: issue.id,
+        file_path: issue.filePath,
+      },
+    });
+  } catch (error: any) {
+    console.error('Fix generation error:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to generate fix',
+      details: error.stack
+    });
   }
 });
