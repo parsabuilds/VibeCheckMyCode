@@ -95,6 +95,9 @@ ${issue.codeSnippet}
 ` : ''}
 
 Please analyze this security issue and provide a complete, production-ready fix for the entire file.`;
+        console.log('Calling Claude API with model: claude-3-5-sonnet-20241022');
+        console.log('API Key present:', !!apiKey);
+        console.log('API Key starts with:', apiKey ? apiKey.substring(0, 10) + '...' : 'none');
         const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -116,8 +119,13 @@ Please analyze this security issue and provide a complete, production-ready fix 
         });
         if (!claudeResponse.ok) {
             const errorData = await claudeResponse.text();
-            console.error('Claude API error:', errorData);
-            throw new Error(`Claude API error: ${claudeResponse.statusText}`);
+            console.error('Claude API error response:', {
+                status: claudeResponse.status,
+                statusText: claudeResponse.statusText,
+                body: errorData,
+                headers: Object.fromEntries(claudeResponse.headers.entries())
+            });
+            throw new Error(`Claude API error: ${claudeResponse.status} ${claudeResponse.statusText} - ${errorData}`);
         }
         const claudeData = await claudeResponse.json();
         const assistantMessage = claudeData.content[0].text;
