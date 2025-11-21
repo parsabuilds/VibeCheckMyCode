@@ -48,9 +48,12 @@ export function LandingPage({ onAnalyze }: LandingPageProps) {
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
               <Shield className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              SecureAF.dev
-            </span>
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                SecureAF.dev
+              </span>
+              <span className="text-xs text-gray-500 -mt-1">Security Automated & Fast</span>
+            </div>
           </div>
           {isAuthenticated ? (
             <div className="flex items-center gap-3">
@@ -88,6 +91,10 @@ export function LandingPage({ onAnalyze }: LandingPageProps) {
               <br />
               with confidence
             </h1>
+
+            <p className="text-2xl text-gray-700 mb-3 font-medium">
+              Because your code deserves better.
+            </p>
 
             <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
               Professional security analysis for your GitHub repositories.
