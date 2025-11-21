@@ -48,7 +48,7 @@ class GitHubService {
 
     sessionStorage.removeItem('github_oauth_state');
 
-    const response = await fetch(`${FUNCTIONS_BASE_URL}/githubOauth`, {
+    const response = await fetch(`${FUNCTIONS_BASE_URL}/githuboauth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ class GitHubService {
     fileContent: string,
     repoContext?: { name: string; language: string; framework?: string }
   ): Promise<any> {
-    const response = await fetch(`${FUNCTIONS_BASE_URL}/generateFix`, {
+    const response = await fetch(`${FUNCTIONS_BASE_URL}/generatefix`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ class GitHubService {
       throw new Error('Not authenticated with GitHub');
     }
 
-    const response = await fetch(`${FUNCTIONS_BASE_URL}/createPr`, {
+    const response = await fetch(`${FUNCTIONS_BASE_URL}/createpr`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
