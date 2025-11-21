@@ -70,7 +70,7 @@ export const generateFix = onRequest(
         throw new Error('Claude API key not configured');
       }
 
-      const systemPrompt = `You are an expert security engineer specializing in fixing security vulnerabilities in code. Your task is to analyze security issues and provide precise, production-ready fixes.
+      const systemInstructions = `You are an expert security engineer specializing in fixing security vulnerabilities in code. Your task is to analyze security issues and provide precise, production-ready fixes.
 
 CRITICAL RULES:
 1. ONLY modify code related to the security issue
@@ -100,7 +100,8 @@ You must respond with a JSON object containing:
   "changes_summary": ["List of specific changes made"]
 }`;
 
-      const userPrompt = `
+      const fullPrompt = `${systemInstructions}
+
 SECURITY ISSUE:
 - Severity: ${issue.severity}
 - Category: ${issue.category}
@@ -132,25 +133,24 @@ ${issue.codeSnippet}
 
 Please analyze this security issue and provide a complete, production-ready fix for the entire file.`;
 
-      console.log('Calling Claude API with model: claude-3-5-sonnet-20241022');
+      console.log('Calling Claude API with model: claude-3-sonnet-20240229');
       console.log('API Key present:', !!apiKey);
-      console.log('API Key starts with:', apiKey ? apiKey.substring(0, 10) + '...' : 'none');
+      console.log('API Key prefix:', apiKey ? apiKey.substring(0, 15) + '...' : 'none');
 
       const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 8000,
-          system: systemPrompt,
+          model: 'claude-3-sonnet-20240229',
+          max_tokens: 4096,
           messages: [
             {
               role: 'user',
-              content: userPrompt,
+              content: fullPrompt,
             },
           ],
         }),
