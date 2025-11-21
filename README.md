@@ -1,4 +1,4 @@
-# SecureAF
+# VibeCheckMyCode.dev
 
 An AI-powered security analysis tool that scans GitHub repositories for vulnerabilities and automatically generates pull requests with fixes.
 
