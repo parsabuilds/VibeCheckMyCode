@@ -15,7 +15,10 @@ interface GitHubOAuthRequest {
 }
 
 export const githubOauth = onRequest(
-  { secrets: [githubClientId, githubClientSecret] },
+  {
+    secrets: [githubClientId, githubClientSecret],
+    cors: true
+  },
   async (req, res) => {
     if (req.method === 'OPTIONS') {
       res.set(corsHeaders);

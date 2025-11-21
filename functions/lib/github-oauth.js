@@ -10,7 +10,10 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
-exports.githubOauth = (0, https_1.onRequest)({ secrets: [githubClientId, githubClientSecret] }, async (req, res) => {
+exports.githubOauth = (0, https_1.onRequest)({
+    secrets: [githubClientId, githubClientSecret],
+    cors: true
+}, async (req, res) => {
     if (req.method === 'OPTIONS') {
         res.set(corsHeaders);
         res.status(200).send();

@@ -7,7 +7,7 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
-exports.createPr = (0, https_1.onRequest)(async (req, res) => {
+exports.createPr = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
     var _a;
     if (req.method === 'OPTIONS') {
         res.set(corsHeaders);

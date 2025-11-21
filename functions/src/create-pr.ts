@@ -25,7 +25,7 @@ interface CreatePRRequest {
   };
 }
 
-export const createPr = onRequest(async (req, res) => {
+export const createPr = onRequest({ cors: true }, async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.set(corsHeaders);
     res.status(200).send();
