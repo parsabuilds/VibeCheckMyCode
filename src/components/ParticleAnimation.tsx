@@ -37,7 +37,7 @@ export function ParticleAnimation() {
       vx: (Math.random() - 0.5) * 0.3,
       vy: (Math.random() - 0.5) * 0.3,
       radius: Math.random() * 2.5 + 1,
-      opacity: Math.random() * 0.6 + 0.3,
+      opacity: Math.random() * 0.3 + 0.1,
     }));
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -100,7 +100,7 @@ export function ParticleAnimation() {
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance < 150) {
-            const opacity = 0.3 * (1 - distance / 150);
+            const opacity = 0.15 * (1 - distance / 150);
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(otherParticle.x, otherParticle.y);
