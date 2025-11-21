@@ -21,7 +21,7 @@ An AI-powered security analysis tool that scans GitHub repositories for vulnerab
 
 ## Live Demo
 
-Try it out: [Your deployment URL here]
+Try it out: https://vibecheckmycode.dev
 
 ## Quick Start
 
@@ -36,7 +36,7 @@ Try it out: [Your deployment URL here]
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/secureaf.git
+   git clone https://github.com/yourusername/vibecheckmycode.git
    cd secureaf
    ```
 
