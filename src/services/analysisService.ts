@@ -191,17 +191,17 @@ export class AnalysisService {
 
     const secretPatterns = [
       {
-        pattern: /(?:api[_-]?key|apikey|api_key_id)\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]/gi,
+        pattern: /(?:api[_-]?key|apikey|api_key_id)\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"](?!\s*[;}]\s*\/\/\s*(?:test|example|mock|placeholder|dummy))/gi,
         type: 'API Key',
         severity: 'critical' as const
       },
       {
-        pattern: /(?:password|passwd|pwd)\s*[:=]\s*['"][^'"]{6,}['"]/gi,
+        pattern: /(?:password|passwd|pwd)\s*[:=]\s*['"][^'"]{6,}['"](?!\s*[;}]\s*\/\/\s*(?:test|example|mock|placeholder|dummy))/gi,
         type: 'Password',
         severity: 'critical' as const
       },
       {
-        pattern: /(?:secret|token|auth[_-]?token)\s*[:=]\s*['"][^'"]{15,}['"]/gi,
+        pattern: /(?:secret|token|auth[_-]?token)\s*[:=]\s*['"][^'"]{15,}['"](?!\s*[;}]\s*\/\/\s*(?:test|example|mock|placeholder|dummy))/gi,
         type: 'Secret',
         severity: 'critical' as const
       },
@@ -286,8 +286,13 @@ export class AnalysisService {
 
     const xssPatterns = [
       {
-        pattern: /dangerouslySetInnerHTML|innerHTML\s*=/gi,
-        description: 'Direct HTML injection',
+        pattern: /dangerouslySetInnerHTML\s*=\s*\{\{\s*__html:/gi,
+        description: 'dangerouslySetInnerHTML usage',
+        severity: 'high' as const
+      },
+      {
+        pattern: /\.innerHTML\s*=/gi,
+        description: 'Direct innerHTML assignment',
         severity: 'high' as const
       },
       {
@@ -298,22 +303,27 @@ export class AnalysisService {
     ];
 
     xssPatterns.forEach(({ pattern, description, severity }) => {
-      const matches = content.match(pattern);
-      if (matches) {
-        matches.forEach(match => {
-          const lineNumber = content.substring(0, content.indexOf(match)).split('\n').length;
-          issues.push({
-            id: `${file.path}-xss-${issues.length}`,
-            severity,
-            category: 'XSS Vulnerability',
-            title: 'Potential Cross-Site Scripting (XSS) Risk',
-            description: `${description} found in ${file.path}. This can allow attackers to inject malicious scripts.`,
-            filePath: file.path,
-            lineNumber,
-            codeSnippet: match,
-            recommendation: 'Sanitize all user input before rendering. Use safe rendering methods and avoid dangerouslySetInnerHTML or innerHTML with untrusted data.',
-          });
+      let match;
+      const regex = new RegExp(pattern);
+      let lastIndex = 0;
+
+      while ((match = regex.exec(content)) !== null) {
+        const lineNumber = content.substring(0, match.index).split('\n').length;
+        const line = lines[lineNumber - 1] || '';
+
+        issues.push({
+          id: `${file.path}-xss-${issues.length}`,
+          severity,
+          category: 'XSS Vulnerability',
+          title: 'Potential Cross-Site Scripting (XSS) Risk',
+          description: `${description} found in ${file.path}. This can allow attackers to inject malicious scripts.`,
+          filePath: file.path,
+          lineNumber,
+          codeSnippet: line.trim().substring(0, 100),
+          recommendation: 'Sanitize all user input before rendering. Use safe rendering methods and avoid dangerouslySetInnerHTML or innerHTML with untrusted data. Consider using DOMPurify or similar sanitization libraries.',
         });
+
+        lastIndex = match.index + 1;
       }
     });
 
