@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, X } from 'lucide-react';
 
 interface CodeBlock {
   id: number;
@@ -31,11 +31,7 @@ const vulnerabilities = [
   },
 ];
 
-interface FloatingCodeBlocksProps {
-  mousePosition: { x: number; y: number };
-}
-
-export function FloatingCodeBlocks({ mousePosition }: FloatingCodeBlocksProps) {
+export function FloatingCodeBlocks() {
   const [blocks, setBlocks] = useState<CodeBlock[]>([]);
 
   useEffect(() => {
@@ -81,72 +77,65 @@ export function FloatingCodeBlocks({ mousePosition }: FloatingCodeBlocksProps) {
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {blocks.map((block, index) => {
-        const isLeft = index < 2;
-        const moveMultiplier = isLeft ? 15 : -15;
-
-        return (
+      {blocks.map((block) => (
+        <div
+          key={block.id}
+          className="absolute animate-float opacity-0"
+          style={{
+            left: `${block.x}%`,
+            top: `${block.y}%`,
+            animationDelay: `${block.delay}s`,
+            animationDuration: `${block.duration}s`,
+          }}
+        >
           <div
-            key={block.id}
-            className="absolute animate-float"
-            style={{
-              left: `${block.x}%`,
-              top: `${block.y}%`,
-              animationDelay: `${block.delay}s`,
-              animationDuration: `${block.duration}s`,
-              transform: `translate(${mousePosition.x * moveMultiplier}px, ${mousePosition.y * moveMultiplier}px)`,
-              transition: 'transform 0.3s ease-out',
-            }}
+            className={`relative bg-white/40 backdrop-blur-sm rounded-lg shadow-xl border-2 transition-all duration-500 ${
+              block.fixed
+                ? 'border-green-300 scale-105'
+                : 'border-red-300'
+            }`}
           >
-            <div
-              className={`relative bg-white/40 backdrop-blur-sm rounded-lg shadow-xl border-2 transition-all duration-500 ${
-                block.fixed
-                  ? 'border-green-300 scale-105'
-                  : 'border-red-300'
-              }`}
-            >
-              <div className="absolute -top-3 -right-3 z-10">
-                {block.fixed ? (
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-scale-in">
-                    <CheckCircle className="w-5 h-5 text-white" />
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
-                    <AlertTriangle className="w-5 h-5 text-white" />
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 min-w-[280px]">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  </div>
-                  <span
-                    className={`text-xs font-bold ${
-                      block.fixed ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {block.vulnerability}
-                  </span>
+            <div className="absolute -top-3 -right-3 z-10">
+              {block.fixed ? (
+                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-scale-in">
+                  <CheckCircle className="w-5 h-5 text-white" />
                 </div>
-                <pre className="text-xs font-mono text-gray-800 bg-gray-100 p-2 rounded overflow-hidden">
-                  <code className={block.fixed ? 'line-through opacity-50' : ''}>
-                    {block.code}
-                  </code>
-                </pre>
-                {block.fixed && (
-                  <div className="mt-2 text-xs text-green-600 font-medium animate-fade-in">
-                    Fixed
-                  </div>
-                )}
+              ) : (
+                <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
+                  <AlertTriangle className="w-5 h-5 text-white" />
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 min-w-[280px]">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                </div>
+                <span
+                  className={`text-xs font-bold ${
+                    block.fixed ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {block.vulnerability}
+                </span>
               </div>
+              <pre className="text-xs font-mono text-gray-800 bg-gray-100 p-2 rounded overflow-hidden">
+                <code className={block.fixed ? 'line-through opacity-50' : ''}>
+                  {block.code}
+                </code>
+              </pre>
+              {block.fixed && (
+                <div className="mt-2 text-xs text-green-600 font-medium animate-fade-in">
+                  Fixed
+                </div>
+              )}
             </div>
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }
