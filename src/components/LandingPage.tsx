@@ -140,6 +140,44 @@ export function LandingPage({ onAnalyze }: LandingPageProps) {
 
             <form onSubmit={handleSubmit} className="mb-8">
               <div className="relative max-w-3xl mx-auto">
+                <svg
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: '-100vw',
+                    top: '50%',
+                    width: '200vw',
+                    height: '100vh',
+                    transform: 'translateY(-50%)'
+                  }}
+                >
+                  <defs>
+                    <linearGradient id="arcGradientLeft" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="rgba(59, 130, 246, 0)" />
+                      <stop offset="50%" stopColor="rgba(59, 130, 246, 0.3)" />
+                      <stop offset="100%" stopColor="rgba(99, 102, 241, 0.4)" />
+                    </linearGradient>
+                    <linearGradient id="arcGradientRight" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="rgba(99, 102, 241, 0.4)" />
+                      <stop offset="50%" stopColor="rgba(59, 130, 246, 0.3)" />
+                      <stop offset="100%" stopColor="rgba(59, 130, 246, 0)" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M 0,50vh Q 50vw,0 100vw,50vh L 100vw,100vh L 0,100vh Z"
+                    fill="none"
+                    stroke="url(#arcGradientLeft)"
+                    strokeWidth="2"
+                    opacity="0.6"
+                  />
+                  <path
+                    d="M 100vw,50vh Q 150vw,0 200vw,50vh L 200vw,100vh L 100vw,100vh Z"
+                    fill="none"
+                    stroke="url(#arcGradientRight)"
+                    strokeWidth="2"
+                    opacity="0.6"
+                  />
+                </svg>
+
                 <div
                   className={`absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur-lg transition-opacity duration-300 ${
                     isHovered ? 'opacity-30' : 'opacity-0'
