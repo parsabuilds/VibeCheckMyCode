@@ -87,6 +87,9 @@ function App() {
   }
 
   if (state === 'error') {
+    const isPrivateRepoError = error?.startsWith('PRIVATE_REPO:');
+    const displayError = isPrivateRepoError ? error.replace('PRIVATE_REPO:', '') : error;
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md text-center border border-red-200">
@@ -95,9 +98,29 @@ function App() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Analysis Failed</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">Redirecting back...</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {isPrivateRepoError ? 'Private Repository' : 'Analysis Failed'}
+          </h2>
+          <p className="text-gray-600 mb-6">{displayError}</p>
+
+          {isPrivateRepoError ? (
+            <div className="space-y-3">
+              <button
+                onClick={() => githubService.initiateOAuth()}
+                className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                Connect GitHub Account
+              </button>
+              <button
+                onClick={handleBack}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-6 rounded-xl transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Redirecting back...</p>
+          )}
         </div>
       </div>
     );

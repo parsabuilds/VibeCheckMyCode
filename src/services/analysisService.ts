@@ -71,19 +71,28 @@ export class AnalysisService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        if (response.status === 403) {
-          throw new Error('GitHub API rate limit exceeded. Please try again in a few minutes.');
-        }
+        const message = errorData.message || '';
+
         if (response.status === 404) {
+          if (!this.githubToken) {
+            throw new Error('PRIVATE_REPO:Repository not found. If this is a private repository, please connect your GitHub account to access it.');
+          }
           throw new Error('Repository not found. Please check the URL.');
         }
+
         if (response.status === 403) {
-          const message = errorData.message || '';
           if (message.includes('rate limit')) {
-            throw new Error('GitHub API rate limit exceeded. Try connecting your GitHub account for higher limits.');
+            if (!this.githubToken) {
+              throw new Error('GitHub API rate limit exceeded. Connect your GitHub account for higher limits.');
+            }
+            throw new Error('GitHub API rate limit exceeded. Please try again in a few minutes.');
           }
-          throw new Error('Access denied. This repository may be private. Try connecting your GitHub account.');
+          if (!this.githubToken) {
+            throw new Error('PRIVATE_REPO:Access denied. This repository appears to be private. Please connect your GitHub account to access it.');
+          }
+          throw new Error('Access denied. You may not have permission to access this repository.');
         }
+
         throw new Error(`Failed to fetch repository: ${errorData.message || response.statusText}`);
       }
 
@@ -147,17 +156,29 @@ export class AnalysisService {
         );
 
         if (!response.ok) {
-          if (response.status === 403) {
-            const errorData = await response.json().catch(() => ({}));
-            const message = errorData.message || '';
-            if (message.includes('rate limit')) {
-              throw new Error('GitHub API rate limit exceeded. Try connecting your GitHub account for higher limits.');
-            }
-            throw new Error('Access denied. This repository may be private. Try connecting your GitHub account.');
-          }
+          const errorData = await response.json().catch(() => ({}));
+          const message = errorData.message || '';
+
           if (response.status === 404) {
+            if (!this.githubToken) {
+              throw new Error('PRIVATE_REPO:Repository tree not found. If this is a private repository, please connect your GitHub account to access it.');
+            }
             throw new Error('Repository not found or branch does not exist.');
           }
+
+          if (response.status === 403) {
+            if (message.includes('rate limit')) {
+              if (!this.githubToken) {
+                throw new Error('GitHub API rate limit exceeded. Connect your GitHub account for higher limits.');
+              }
+              throw new Error('GitHub API rate limit exceeded. Please try again in a few minutes.');
+            }
+            if (!this.githubToken) {
+              throw new Error('PRIVATE_REPO:Access denied. This repository appears to be private. Please connect your GitHub account to access it.');
+            }
+            throw new Error('Access denied. You may not have permission to access this repository.');
+          }
+
           throw new Error('Failed to fetch repository tree. The repository may be empty or inaccessible.');
         }
       }
