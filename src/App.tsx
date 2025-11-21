@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { AnalysisProgress } from './components/AnalysisProgress';
 import { ResultsDashboard } from './components/ResultsDashboard';
@@ -13,6 +13,7 @@ function App() {
   const [repoUrl, setRepoUrl] = useState('');
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authKey, setAuthKey] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -28,8 +29,14 @@ function App() {
   const handleGitHubCallback = async (code: string, state: string) => {
     try {
       await githubService.handleCallback(code, state);
+
+      const token = githubService.getAccessToken();
+      analysisService.setGitHubToken(token);
+
+      setAuthKey(prev => prev + 1);
+
       window.history.replaceState({}, document.title, '/');
-      window.location.href = '/';
+      setState('landing');
     } catch (err) {
       console.error('GitHub OAuth error:', err);
       setError(err instanceof Error ? err.message : 'GitHub authentication failed');
@@ -41,10 +48,13 @@ function App() {
     }
   };
 
-  const handleAnalyze = async (url: string) => {
+  const handleAnalyze = useCallback(async (url: string) => {
     setRepoUrl(url);
     setState('analyzing');
     setError(null);
+
+    const token = githubService.getAccessToken();
+    analysisService.setGitHubToken(token);
 
     try {
       const analysisResult = await analysisService.analyzeRepository(url);
@@ -59,7 +69,7 @@ function App() {
         setState('landing');
       }, 3000);
     }
-  };
+  }, []);
 
   const handleBack = () => {
     setState('landing');
@@ -69,7 +79,7 @@ function App() {
   };
 
   if (state === 'landing') {
-    return <LandingPage onAnalyze={handleAnalyze} />;
+    return <LandingPage key={authKey} onAnalyze={handleAnalyze} />;
   }
 
   if (state === 'analyzing') {

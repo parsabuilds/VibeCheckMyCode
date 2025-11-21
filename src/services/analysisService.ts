@@ -3,12 +3,30 @@ import type { AnalysisResult, SecurityIssue, RepoFile } from '../types';
 const GITHUB_API = 'https://api.github.com';
 
 export class AnalysisService {
+  private githubToken: string | null = null;
+
+  setGitHubToken(token: string | null) {
+    this.githubToken = token;
+  }
+
+  private getAuthHeaders(): HeadersInit {
+    const headers: HeadersInit = {
+      'Accept': 'application/vnd.github.v3+json',
+    };
+
+    if (this.githubToken) {
+      headers['Authorization'] = `Bearer ${this.githubToken}`;
+    }
+
+    return headers;
+  }
+
   async analyzeRepository(repoUrl: string): Promise<AnalysisResult> {
     const { owner, repo } = this.parseGitHubUrl(repoUrl);
 
-    const repoData = await this.fetchRepoMetadata(owner, repo);
+    await this.fetchRepoMetadata(owner, repo);
     const files = await this.fetchRepoContents(owner, repo);
-    const issues = await this.performSecurityAnalysis(files, owner, repo);
+    const issues = await this.performSecurityAnalysis(files);
 
     const criticalCount = issues.filter(i => i.severity === 'critical').length;
     const highCount = issues.filter(i => i.severity === 'high').length;
@@ -48,9 +66,7 @@ export class AnalysisService {
   private async fetchRepoMetadata(owner: string, repo: string) {
     try {
       const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}`, {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-        },
+        headers: this.getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -60,6 +76,13 @@ export class AnalysisService {
         }
         if (response.status === 404) {
           throw new Error('Repository not found. Please check the URL.');
+        }
+        if (response.status === 403) {
+          const message = errorData.message || '';
+          if (message.includes('rate limit')) {
+            throw new Error('GitHub API rate limit exceeded. Try connecting your GitHub account for higher limits.');
+          }
+          throw new Error('Access denied. This repository may be private. Try connecting your GitHub account.');
         }
         throw new Error(`Failed to fetch repository: ${errorData.message || response.statusText}`);
       }
@@ -85,9 +108,7 @@ export class AnalysisService {
           const response = await fetch(
             `${GITHUB_API}/repos/${owner}/${repo}/contents/${file.path}`,
             {
-              headers: {
-                'Accept': 'application/vnd.github.v3+json',
-              },
+              headers: this.getAuthHeaders(),
             }
           );
 
@@ -113,9 +134,7 @@ export class AnalysisService {
       let response = await fetch(
         `${GITHUB_API}/repos/${owner}/${repo}/git/trees/main?recursive=1`,
         {
-          headers: {
-            'Accept': 'application/vnd.github.v3+json',
-          },
+          headers: this.getAuthHeaders(),
         }
       );
 
@@ -123,18 +142,23 @@ export class AnalysisService {
         response = await fetch(
           `${GITHUB_API}/repos/${owner}/${repo}/git/trees/master?recursive=1`,
           {
-            headers: {
-              'Accept': 'application/vnd.github.v3+json',
-            },
+            headers: this.getAuthHeaders(),
           }
         );
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
           if (response.status === 403) {
-            throw new Error('GitHub API rate limit exceeded. Please try again later.');
+            const errorData = await response.json().catch(() => ({}));
+            const message = errorData.message || '';
+            if (message.includes('rate limit')) {
+              throw new Error('GitHub API rate limit exceeded. Try connecting your GitHub account for higher limits.');
+            }
+            throw new Error('Access denied. This repository may be private. Try connecting your GitHub account.');
           }
-          throw new Error('Failed to fetch repository tree. The repository may be empty or private.');
+          if (response.status === 404) {
+            throw new Error('Repository not found or branch does not exist.');
+          }
+          throw new Error('Failed to fetch repository tree. The repository may be empty or inaccessible.');
         }
       }
 
@@ -170,9 +194,7 @@ export class AnalysisService {
   }
 
   private async performSecurityAnalysis(
-    files: RepoFile[],
-    owner: string,
-    repo: string
+    files: RepoFile[]
   ): Promise<SecurityIssue[]> {
     const issues: SecurityIssue[] = [];
 
